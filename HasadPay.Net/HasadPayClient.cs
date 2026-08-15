@@ -31,7 +31,15 @@ public class HasadPayClient : IHasadPayClient, IDisposable
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString | System.Text.Json.Serialization.JsonNumberHandling.WriteAsString,
+        Converters = { new HasadPay.Net.Converters.FlexibleStringConverter(), new HasadPay.Net.Converters.FlexibleIntConverter() }
     };
+
+    [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
+    public HasadPayClient(Microsoft.Extensions.Options.IOptions<HasadPayOptions> options, HttpClient httpClient)
+        : this(options?.Value ?? throw new ArgumentNullException(nameof(options)), httpClient)
+    {
+    }
 
     public HasadPayClient(HasadPayOptions options, HttpClient? httpClient = null)
     {
@@ -137,7 +145,21 @@ public class HasadPayClient : IHasadPayClient, IDisposable
                 return (TResponse)(object)rawResponse;
             }
 
-            var result = JsonSerializer.Deserialize<TResponse>(rawResponse, JsonOptions);
+            using var doc = JsonDocument.Parse(rawResponse);
+            var root = doc.RootElement;
+
+            JsonElement targetElement = root;
+            if (root.ValueKind == JsonValueKind.Object &&
+                (typeof(TResponse) == typeof(Models.Transactions.TransactionResponse) ||
+                 typeof(TResponse) == typeof(Models.Invoices.InvoiceResponse)))
+            {
+                if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                {
+                    targetElement = dataProp;
+                }
+            }
+
+            var result = JsonSerializer.Deserialize<TResponse>(targetElement.GetRawText(), JsonOptions);
             if (result == null)
             {
                 throw new HasadPayApiException("Received empty response payload from HasadPay.", (int)response.StatusCode, rawResponse: rawResponse);
@@ -200,7 +222,7 @@ public class HasadPayClient : IHasadPayClient, IDisposable
                 password = Options.Password
             };
 
-            var endpoints = new[] { "api/v1/auth/login/", "api/v1/token/", "api/v1/users/login/" };
+            var endpoints = new[] { "api/v1/auth/", "api/v1/auth/login/", "api/v1/token/", "api/v1/users/login/" };
             string? token = null;
 
             foreach (var endpoint in endpoints)
@@ -220,12 +242,26 @@ public class HasadPayClient : IHasadPayClient, IDisposable
                         using var doc = JsonDocument.Parse(authJson);
                         var root = doc.RootElement;
 
-                        if (root.TryGetProperty("access", out var accessProp) ||
-                            root.TryGetProperty("token", out accessProp) ||
-                            root.TryGetProperty("access_token", out accessProp) ||
-                            (root.TryGetProperty("data", out var dataProp) && dataProp.TryGetProperty("token", out accessProp)))
+                        if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                        {
+                            if (dataProp.TryGetProperty("access_token", out var datProp) ||
+                                dataProp.TryGetProperty("token", out datProp) ||
+                                dataProp.TryGetProperty("access", out datProp))
+                            {
+                                token = datProp.GetString();
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(token) && (
+                            root.TryGetProperty("access_token", out var accessProp) ||
+                            root.TryGetProperty("access", out accessProp) ||
+                            root.TryGetProperty("token", out accessProp)))
                         {
                             token = accessProp.GetString();
+                        }
+
+                        if (!string.IsNullOrEmpty(token))
+                        {
                             break;
                         }
                     }

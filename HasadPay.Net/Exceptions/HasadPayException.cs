@@ -23,8 +23,8 @@ public class HasadPayException : Exception
 /// </summary>
 public class HasadPayAuthenticationException : HasadPayException
 {
-    public HasadPayAuthenticationException(string message, int? statusCode = 401, string? errorCode = "AUTHENTICATION_FAILED", string? rawResponse = null)
-        : base(message, statusCode, errorCode, rawResponse) { }
+    public HasadPayAuthenticationException(string message, int? statusCode = 401, string? errorCode = "AUTHENTICATION_FAILED", string? rawResponse = null, Exception? innerException = null)
+        : base(message, statusCode, errorCode, rawResponse, innerException) { }
 }
 
 /// <summary>
@@ -34,8 +34,8 @@ public class HasadPayValidationException : HasadPayException
 {
     public Dictionary<string, string[]>? ValidationErrors { get; }
 
-    public HasadPayValidationException(string message, Dictionary<string, string[]>? validationErrors = null, int? statusCode = 400, string? errorCode = "VALIDATION_ERROR", string? rawResponse = null)
-        : base(message, statusCode, errorCode, rawResponse)
+    public HasadPayValidationException(string message, Dictionary<string, string[]>? validationErrors = null, int? statusCode = 400, string? errorCode = "VALIDATION_ERROR", string? rawResponse = null, Exception? innerException = null)
+        : base(message, statusCode, errorCode, rawResponse, innerException)
     {
         ValidationErrors = validationErrors;
     }
@@ -46,8 +46,8 @@ public class HasadPayValidationException : HasadPayException
 /// </summary>
 public class HasadPaySignatureException : HasadPayException
 {
-    public HasadPaySignatureException(string message = "Webhook HMAC-SHA256 signature verification failed.")
-        : base(message, 400, "SIGNATURE_MISMATCH") { }
+    public HasadPaySignatureException(string message = "Webhook HMAC-SHA256 signature verification failed.", Exception? innerException = null)
+        : base(message, 400, "SIGNATURE_MISMATCH", null, innerException) { }
 }
 
 /// <summary>
@@ -55,8 +55,8 @@ public class HasadPaySignatureException : HasadPayException
 /// </summary>
 public class HasadPayNotFoundException : HasadPayException
 {
-    public HasadPayNotFoundException(string message, int? statusCode = 404, string? errorCode = "NOT_FOUND", string? rawResponse = null)
-        : base(message, statusCode, errorCode, rawResponse) { }
+    public HasadPayNotFoundException(string message, int? statusCode = 404, string? errorCode = "NOT_FOUND", string? rawResponse = null, Exception? innerException = null)
+        : base(message, statusCode, errorCode, rawResponse, innerException) { }
 }
 
 /// <summary>
@@ -64,8 +64,8 @@ public class HasadPayNotFoundException : HasadPayException
 /// </summary>
 public class HasadPayApiException : HasadPayException
 {
-    public HasadPayApiException(string message, int statusCode, string? errorCode = null, string? rawResponse = null)
-        : base(message, statusCode, errorCode, rawResponse) { }
+    public HasadPayApiException(string message, int statusCode, string? errorCode = null, string? rawResponse = null, Exception? innerException = null)
+        : base(message, statusCode, errorCode, rawResponse, innerException) { }
 }
 
 /// <summary>
